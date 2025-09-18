@@ -16,6 +16,28 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    restart: unless-stopped
+
+  postgres:
+    image: pgvector/pgvector:pg17-trixie
+    container_name: postgres
+    environment:
+      POSTGRES_DB: shoppingdb
+      POSTGRES_USER: dbuser
+      POSTGRES_PASSWORD: dbpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_vector_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
 volumes:
   ollama_data:
+  postgres_vector_data:

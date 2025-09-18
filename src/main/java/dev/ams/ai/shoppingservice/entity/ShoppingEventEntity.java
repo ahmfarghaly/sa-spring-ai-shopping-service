@@ -3,6 +3,8 @@ package dev.ams.ai.shoppingservice.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -25,8 +27,9 @@ public abstract class ShoppingEventEntity {
     private Long entityId; // productId, orderId, etc.
     private String sessionId;
 
-    @Column(columnDefinition = "JSON")
-    private String metadata;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, Object> metadata;
 
     @CreationTimestamp
     private LocalDateTime timestamp;

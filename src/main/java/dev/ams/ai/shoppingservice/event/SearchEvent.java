@@ -1,7 +1,5 @@
 package dev.ams.ai.shoppingservice.event;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.ams.ai.shoppingservice.entity.EventType;
 import dev.ams.ai.shoppingservice.entity.SearchEventEntity;
 import lombok.Getter;
@@ -41,15 +39,11 @@ public class SearchEvent extends ShoppingEvent {
         entity.setTimestamp(LocalDateTime.ofInstant(Instant.ofEpochMilli(getTimestamp()), ZoneId.systemDefault()));
         entity.setEventType(EventType.SEARCH);
 
-        ObjectMapper mapper = new ObjectMapper();
-        try {
-            entity.setMetadata(mapper.writeValueAsString(Map.of(
-                    "query", query,
-                    "resultCount", resultCount
-            )));
-        } catch (JsonProcessingException e) {
-            log.error("Failed to convert metadata to JSON", e);
-        }
+        entity.setMetadata(Map.of(
+                "query", query,
+                "resultCount", resultCount
+        ));
+
         return entity;
     }
 

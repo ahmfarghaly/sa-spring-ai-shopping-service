@@ -1,5 +1,6 @@
 package dev.ams.ai.shoppingservice.service;
 
+import dev.ams.ai.shoppingservice.AIUtility;
 import dev.ams.ai.shoppingservice.entity.Customer;
 import dev.ams.ai.shoppingservice.entity.Product;
 import dev.ams.ai.shoppingservice.entity.RealTimeInsightEntity;
@@ -12,7 +13,6 @@ import dev.ams.ai.shoppingservice.repository.RealTimeInsightRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -23,10 +23,10 @@ import java.time.LocalDateTime;
 @Component
 @RequiredArgsConstructor
 public class RealTimeAnalyticsProcessor {
-    private final ChatClient chatClient;
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final RealTimeInsightRepository insightRepository;
+    private final AIUtility aiUtility;
 
     @Async
     @Transactional
@@ -34,7 +34,7 @@ public class RealTimeAnalyticsProcessor {
     public void processProductView(ProductViewEvent event) {
         log.info("Processing product view event for product: {}", event.getProductId());
         String prompt = buildProductViewPrompt(event);
-        String analysis = chatClient.prompt(prompt).call().content();
+        String analysis = aiUtility.callAiWithFallback(prompt);
         storeRealTimeInsight(event.getCustomerId(), "view_analysis", analysis, event.getProductId());
         log.info("Product view analysis generated for product: {} with analysis: {}", event.getProductId(), analysis);
     }
@@ -45,7 +45,7 @@ public class RealTimeAnalyticsProcessor {
     public void processPurchase(PurchaseEvent event) {
         log.info("Processing purchase event for order: {}", event.getOrderId());
         String prompt = buildPurchasePrompt(event);
-        String analysis = chatClient.prompt(prompt).call().content();
+        String analysis = aiUtility.callAiWithFallback(prompt);
         storeRealTimeInsight(event.getCustomerId(), "purchase_analysis", analysis, event.getOrderId());
         log.info("Purchase analysis generated for order: {} with analysis: {}", event.getOrderId(), analysis);
     }
@@ -56,7 +56,7 @@ public class RealTimeAnalyticsProcessor {
     public void processSearch(SearchEvent event) {
         log.info("Processing search event for query: {}", event.getQuery());
         String prompt = buildSearchPrompt(event);
-        String analysis = chatClient.prompt(prompt).call().content();
+        String analysis = aiUtility.callAiWithFallback(prompt);
         storeRealTimeInsight(event.getCustomerId(), "search_analysis", analysis, null);
         log.info("Search analysis generated for query: {} with analysis: {}", event.getQuery(), analysis);
     }
@@ -123,4 +123,5 @@ public class RealTimeAnalyticsProcessor {
 
         insightRepository.save(insight);
     }
+
 }
