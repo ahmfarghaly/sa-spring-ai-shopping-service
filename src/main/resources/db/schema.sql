@@ -13,6 +13,17 @@ CREATE TABLE IF NOT EXISTS vector_store (
 CREATE INDEX ON vector_store USING HNSW (embedding vector_cosine_ops);
 
 -- Initialize tables
+CREATE TABLE IF NOT EXISTS shops (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    categories VARCHAR(100),
+    rating DECIMAL(10, 2),
+    logoUrl TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS products (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(255) NOT NULL,
@@ -20,8 +31,10 @@ CREATE TABLE IF NOT EXISTS products (
     category VARCHAR(100),
     price DECIMAL(10, 2),
     stock_quantity INT,
+    shop_id BIGINT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (shop_id) REFERENCES shops(id)
 );
 
 CREATE TABLE IF NOT EXISTS customers (

@@ -1,11 +1,10 @@
 package dev.ams.ai.shoppingservice.config.rag;
 
-import dev.ams.ai.shoppingservice.entity.Customer;
-import dev.ams.ai.shoppingservice.entity.Order;
 import dev.ams.ai.shoppingservice.entity.Product;
+import dev.ams.ai.shoppingservice.entity.Shop;
 import dev.ams.ai.shoppingservice.repository.CustomerRepository;
-import dev.ams.ai.shoppingservice.repository.OrderRepository;
 import dev.ams.ai.shoppingservice.repository.ProductRepository;
+import dev.ams.ai.shoppingservice.repository.ShopRepository;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.document.DocumentReader;
 import org.springframework.stereotype.Component;
@@ -19,13 +18,13 @@ import java.util.Map;
 public class EntityDocumentReader implements DocumentReader {
 
     private final ProductRepository productRepo;
-    private final OrderRepository orderRepo;
     private final CustomerRepository customerRepo;
+    private final ShopRepository shopRepo;
 
-    public EntityDocumentReader(ProductRepository p, OrderRepository o, CustomerRepository c) {
+    public EntityDocumentReader(ProductRepository p, CustomerRepository c, ShopRepository s) {
         this.productRepo = p;
-        this.orderRepo = o;
         this.customerRepo = c;
+        this.shopRepo = s;
     }
 
     @Override
@@ -39,62 +38,24 @@ public class EntityDocumentReader implements DocumentReader {
 
         // Products
         productRepo.findAll().forEach(p -> {
-
             docs.add(toProductDocument(p));
         });
 
-        // Should be limited in a real scenario
-        orderRepo.findAll().forEach(o -> {
-
-            docs.add(toOrderDocument(o));
-        });
-
-        // Customer summary, in a real scenario this should be protected for privacy
-        customerRepo.findAll().forEach(cu -> {
-
-            docs.add(toCustomerDocument(cu));
+        // Shops
+        shopRepo.findAll().forEach(s -> {
+            docs.add(toShopDocument(s));
         });
 
         return docs;
     }
 
-    private Document toCustomerDocument(Customer customer) {
-        String content = String.format(
-                "%s is a %d-year-old %s customer. %s",
-                customer.getName(),
-                customer.getAge(),
-                customer.getGender().name().toLowerCase(),
-                enrichCustomerContext(customer)
-        );
-
-        Map<String, Object> metadata = Map.of(
-                "entityType", "Customer",
-                "customerId", customer.getId(),
-                "age", customer.getAge(),
-                "gender", customer.getGender().name()
-        );
-        return new Document(content, metadata);
-    }
-
-    private String enrichCustomerContext(Customer customer) {
-        // Add richer, descriptive text for better embeddings
-        StringBuilder sb = new StringBuilder();
-        sb.append("Purchased products: ");
-        orderRepo.findByCustomerId(customer.getId()).forEach(o -> {
-            o.getItems().forEach(item -> {
-                sb.append(item.getProduct().getTitle())
-                        .append(", ");
-            });
-        });
-        return sb.toString();
-    }
-
     private Document toProductDocument(Product product) {
         String content = String.format(
-                "%s is a %s product priced at %.2f. It is described as: %s",
+                "%s is a %s product priced at %.2f and sold by %s. It is described as: %s",
                 product.getTitle(),
                 product.getCategory(),
                 product.getPrice(),
+                product.getShop().getName(),
                 product.getDescription()
         );
 
@@ -107,22 +68,23 @@ public class EntityDocumentReader implements DocumentReader {
         return new Document(content, metadata);
     }
 
-    private Document toOrderDocument(Order order) {
+    private Document toShopDocument(Shop shop) {
         String content = String.format(
-                "Order %d was placed by customer %s. It contains %d products and totals %.2f.",
-                order.getId(),
-                order.getCustomer().getName(),
-                order.getItems().size(),
-                order.getTotalAmount()
+                "Shop %s has a rating of %.2f and is selling %s categories with. It is described as: %s",
+                shop.getName(),
+                shop.getRating(),
+                shop.getCategories(),
+                shop.getDescription()
         );
-
         Map<String, Object> metadata = Map.of(
-                "entityType", "Order",
-                "orderId", order.getId(),
-                "customerId", order.getCustomer().getId()
+                "entityType", "Shop",
+                "shopId", shop.getId(),
+                "categories", String.join(", ", shop.getCategories())
         );
 
         return new Document(content, metadata);
+
+
     }
 }
 

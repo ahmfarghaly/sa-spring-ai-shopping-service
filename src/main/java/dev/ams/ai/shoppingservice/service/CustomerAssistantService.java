@@ -8,6 +8,7 @@ import dev.ams.ai.shoppingservice.dto.RecommendationRequest;
 import dev.ams.ai.shoppingservice.dto.RecommendationResponse;
 import dev.ams.ai.shoppingservice.entity.Customer;
 import dev.ams.ai.shoppingservice.repository.CustomerRepository;
+import dev.ams.ai.shoppingservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -27,14 +28,26 @@ public class CustomerAssistantService {
     private final VectorStore vectorStore;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final CustomerRepository customerRepo;
+    private final OrderRepository orderRepo;
 
     public ChatResponse handleChat(ChatRequest request) {
         log.info("Processing chat request: {}", request);
 
         Optional<Customer> customer = customerRepo.findById(request.getCustomerId());
-        String query = "Customer: " +
-                customer.map(Customer::getName).orElse("Unknown")
-                + "\n" + request.getMessage();
+        String userContext = "";
+        if(customer.isPresent()){
+            Customer c = customer.get();
+            userContext = String.format(
+                    "%s is a %d-year-old %s, with customerId %d.\n",
+                    c.getName(),
+                    c.getAge(),
+                    c.getGender().name().toLowerCase(),
+                    c.getId()
+            );
+            userContext += enrichCustomerContext(c);
+        }
+
+        String query = userContext + "\n" + request.getMessage();
         // Retrieve related documents from VectorStore
         List<Document> relevantDocs =
                 vectorStore.similaritySearch(
@@ -54,14 +67,15 @@ public class CustomerAssistantService {
         // Augment user query with context
         String ragPrompt = """
             You are a helpful shopping assistant.
-            Use the following context to answer the customer query:
-
-            Context:
-            %s
-
-            Question:
-            %s
-            """.formatted(context, query);
+                Use the following context and user information to answer the customer's question:
+                Context:
+                %s
+            
+                User context: %s
+            
+                Question:
+                %s
+            """.formatted(context, userContext, request.getMessage());
 
         // Call the LLM via ChatClient
         String response = chatClient.prompt()
@@ -98,5 +112,18 @@ public class CustomerAssistantService {
         log.debug("Formatted JSON: {}", jsonResponse);
 
         return objectMapper.readValue(jsonResponse, RecommendationResponse.class);
+    }
+
+    private String enrichCustomerContext(Customer customer) {
+        // Add richer, descriptive text for better embeddings
+        StringBuilder sb = new StringBuilder();
+        sb.append("Purchased products: ");
+        orderRepo.findByCustomerId(customer.getId()).forEach(o -> {
+            o.getItems().forEach(item -> {
+                sb.append(item.getProduct().getTitle())
+                        .append(", ");
+            });
+        });
+        return sb.toString();
     }
 }
